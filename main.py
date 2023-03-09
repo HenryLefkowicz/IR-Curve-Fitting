@@ -43,9 +43,7 @@ with open ('test.csv', 'r') as csv_file:
 # Removes noise from intensity values
     inten_arr =  np.array(inten)
     freq_arr = np.array(freq)
-    print(inten_arr)
     noise = min(inten_arr)
-    print(noise)
     holder = []
     for i in range(len(inten_arr)):
         holder.append(inten_arr[i]-noise)
@@ -234,8 +232,6 @@ def peak_break(peak_list_local,freq_arr):
         except IndexError:
             break
 
-    print(local_peak_points)
-
     return local_peak_points
 
 def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intensity_ranges,flip_value):
@@ -299,7 +295,6 @@ def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intens
                 subpeak_gaussian.append(calc * flip_value)
             gaussian_peaks.append(subpeak_gaussian)
 
-
     # Shifts the inverted curves up so they match where they're supposed to be
     # TODO: Fix this bit
     # TODO: Also check to make sure that all the lists are the same and graph correctly
@@ -326,7 +321,8 @@ def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intens
             #print(subpeak_holder)
             inverted_gaussian.append(subpeak_holder)
 
-    print(inverted_gaussian)
+
+    print('inverted_gaussian',inverted_gaussian)
 
     return gaussian_peaks,inverted_gaussian
 
@@ -353,6 +349,10 @@ def peak_print(peak_list_global,full_peak_list,calculated_peaks,color,flip_value
 
     gaussian_peaks = calculated_peaks[0]
     inverted_gaussian = calculated_peaks[1]
+
+    print(len(full_peak_list[1]))
+    print(len(gaussian_peaks[1]))
+    print(len(inverted_gaussian[1]))
 
     # Determines if the function is printing the inverted or the
     # non-inverted curves
