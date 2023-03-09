@@ -211,13 +211,18 @@ def peak_break(peak_list_local,freq_arr):
     # Yes, I recognize that from a time complexity standpoint this is a horrible
     # way to do this
 
+    # Creates a reference version of local_peak_points that never changes size
+    # so you can look at it to figure out what points you need to add
+    # this way, local_peak_points is the only one that gets changed
+    uc_local_peak_points = local_peak_points
+
     for i in range(len(local_peak_points)):
         try:
-            front = local_peak_points[i+1][0:8]
+            front = uc_local_peak_points[i+1][0:8]
             for j in range(len(front)):
                 local_peak_points[i].append(front[j])
             if i != 0:
-                back = local_peak_points[i-1][-8:]
+                back = uc_local_peak_points[i-1][-8:]
                 #back.reverse()
                 for k in range(len(back)):
                     local_peak_points[i].insert(0,back[k])
@@ -298,10 +303,10 @@ def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intens
     # TODO: Fix this bit
 
     inverted_gaussian = []
-    subpeak_holder = []
     if flip_value == -1:
         # Pulls subpeak of intensity ranges
         for subpeak in range(len(intensity_ranges)):
+            subpeak_holder = []
             ##print('subpeak', intensity_ranges[subpeak])
             # Looks at individual (original) points inside the subpeak of intensity values
             # The intensity ranges sets are all the same size, so i can be used for both
@@ -315,9 +320,9 @@ def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intens
                 # Adds the difference between the two points to the calculated peak
                 # set the curves on the same level
                 new_value = gaussian_peaks[subpeak][i] - difference
-            subpeak_holder.append(new_value)
+                subpeak_holder.append(new_value)
             #print(subpeak_holder)
-        inverted_gaussian.append(subpeak_holder)
+            inverted_gaussian.append(subpeak_holder)
 
     print(inverted_gaussian)
 
@@ -380,7 +385,7 @@ def main():
     full_peak_list = peak_break(peak_list_local_bound,freq_arr)
     intensity_ranges = intensity_peaks(full_peak_list)
     gaussian_peaks = gaussian_calc(full_peak_list, min_max_min_id(peak_list_global), peak_list_global,intensity_ranges,-1)
-    peak_print(peak_list_global,full_peak_list,gaussian_peaks,color2,1)
+    peak_print(peak_list_global,full_peak_list,gaussian_peaks,color2,-1)
 
     plt.show()
 
