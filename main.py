@@ -252,6 +252,7 @@ def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intens
     :param peak_list_global: an dual array that represents each peak intensity and the frequency
     that peak is found at. Contains peaks for both the highest peaks and lowest peaks
     :param intensity_ranges: like full_peak_list, but for the intensities
+    :param flip_value: tells the function if it's doing the inverse or non-inverse calculation
     :return: List of each calculated gaussian value for each subpeak
     '''
 
@@ -301,6 +302,7 @@ def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intens
 
     # Shifts the inverted curves up so they match where they're supposed to be
     # TODO: Fix this bit
+    # TODO: Also check to make sure that all the lists are the same and graph correctly
 
     inverted_gaussian = []
     if flip_value == -1:
@@ -319,7 +321,7 @@ def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intens
                 difference = a - abs(intensity_ranges[subpeak][i])
                 # Adds the difference between the two points to the calculated peak
                 # set the curves on the same level
-                new_value = gaussian_peaks[subpeak][i] - difference
+                new_value = gaussian_peaks[subpeak][i] + difference
                 subpeak_holder.append(new_value)
             #print(subpeak_holder)
             inverted_gaussian.append(subpeak_holder)

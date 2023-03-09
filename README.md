@@ -2,6 +2,7 @@ Things to do
 
 - [X] Add JCAMP-DX File Type Support
 - [x] Change Gaussian calculation to increase range
+  - [ ] Make sure lists are the same sizes. 
 - [ ] Update documentation (7/03/2023)
 - [ ] Add function for data import
 - [ ] Write file of (Freq, Absorbance)
