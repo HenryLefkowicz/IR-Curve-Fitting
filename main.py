@@ -200,6 +200,28 @@ def peak_break(peak_list_local,freq_arr):
         local_peak_points.append(sub)
         sub = []
 
+    # Adds points to gaussian range calculation
+    # TODO: Fix weird double plotting thing
+
+    print(local_peak_points)
+
+    for i in range(len(local_peak_points)):
+        try:
+            front = local_peak_points[i+1][0:8]
+            for j in range(len(front)):
+                local_peak_points[i].append(front[j])
+            if i != 0:
+                back = local_peak_points[i-1][-8:]
+                #back.reverse()
+                for k in range(len(back)):
+                    local_peak_points[i].insert(0,back[k])
+            elif i == 0:
+                pass
+        except IndexError:
+            break
+
+    print(local_peak_points)
+
     return local_peak_points
 
 def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intensity_ranges):
