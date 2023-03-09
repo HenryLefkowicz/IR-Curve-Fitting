@@ -7,6 +7,7 @@ from collections import OrderedDict
 import math
 
 # TODO: Update documentation (7/03/2023)
+# Why do I have a sinking feeling that this isn't going to fit different IRs well...
 ir_dict = {}
 ir_dict = OrderedDict()
 
@@ -50,12 +51,10 @@ with open ('test.csv', 'r') as csv_file:
         holder.append(inten_arr[i]-noise)
     inten_arr = np.array(holder)
 
-    #print(inten_arr)
-
 
 # Find peaks from intensity data
 # find_peaks returns the INDICES of the peaks, *NOT* the peaks themselves
-# this has to be done in two sets because find_peaks can't find both at once
+# this has to be done in two sets because find_peaks() can't find both at once
 # TODO: Identify flat regions / inflection points
     low_peaks, low_ = find_peaks(-inten_arr)
     high_peaks, high_ = find_peaks(inten_arr)
@@ -78,6 +77,9 @@ with open ('test.csv', 'r') as csv_file:
         high_peaks_dict[pointlist[i][0]] = pointlist[i][1] - noise
     for i in combined_peak_list:
         combined_peaks_dict[pointlist[i][0]] = pointlist[i][1] - noise
+
+    low_peaks_INVERT_dict = high_peaks_dict
+    high_peaks_INVERT_dict = low_peaks_dict
 
     # print('LPD', low_peaks_dict)
     # print('HPD', high_peaks_dict)
@@ -231,9 +233,11 @@ def peak_break(peak_list_local,freq_arr):
 
     return local_peak_points
 
-def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intensity_ranges):
+def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intensity_ranges,flip_value):
 
     # TODO: Change Gaussian calculation to increase range
+
+    flip_value = flip_value
 
     '''
     :param full_peak_list: Entire spectra separated into their individual points. Each peak is
@@ -251,64 +255,73 @@ def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intens
     if peak_list_local_bound[0] == 'LIPf_Lowest':
         e = 2.718281
         for subpeak in range(len(full_peak_list)):
+            # Determines which subpeak we're iterating over
             subpeak_gaussian = []
+            # this is just going to give you the original intensity value
+            # that you're going to do math with (I think, maybe something different)
             a = peak_list_global[3][subpeak]
-            #print('Subpeak under analysis: ',full_peak_list[subpeak])
+            # standard deviation of the subpeak req. for gaussian calc
             mu = stdev(full_peak_list[subpeak])
+            # subpeak frequency that math is being done on
+            # TODO: Change this so it works for LIPf_lowest
             b = peak_list_local_bound[subpeak+1][1]
-            #print('Subpeak Freq:',b,'Subpeak Intensity: ',a)
             for point in full_peak_list[subpeak]:
-               #print('Frequency point under calculation: ',point)
+                # does all the math bits
                 over = (point-b)**2
                 under = 2*(mu**2)
                 exp = -(over/under)
                 calc = a * e**(exp)
-                subpeak_gaussian.append(calc)
-            #print('Subpeak_Gaussian: ', subpeak_gaussian)
+                # multiplies calculated value by flip_value depending on whether or not
+                # it's inverted
+                subpeak_gaussian.append(calc * flip_value)
+            # Appends sublist to master list
             gaussian_peaks.append(subpeak_gaussian)
-        #print(gaussian_peaks)
+
+    # Yeah, um, I don't want to write the documentation twice but it's the same
     elif peak_list_local_bound[0] == 'HIPf_Lowest':
         e = 2.718281
         for subpeak in range(len(full_peak_list)):
             subpeak_gaussian = []
             a = peak_list_global[3][subpeak]
-            #print('Subpeak under analysis: ',full_peak_list[subpeak])
             mu = stdev(full_peak_list[subpeak])
             b = peak_list_local_bound[subpeak+1][1]
-            #print('Subpeak Freq:',b,'Subpeak Intensity: ',a)
             for point in full_peak_list[subpeak]:
-               #print('Frequency point under calculation: ',point)
                 over = (point-b)**2
                 under = 2*(mu**2)
                 exp = -(over/under)
                 calc = a * e**(exp)
-                subpeak_gaussian.append(calc)
-            #print('Subpeak_Gaussian: ', subpeak_gaussian)
+                subpeak_gaussian.append(calc * flip_value)
             gaussian_peaks.append(subpeak_gaussian)
-        #print(gaussian_peaks)
 
-    # Checks difference between the calculated gaussian point and the actual value
 
-    holder = []
-    for i in range(len(intensity_ranges[0])):
-        try:
-            x = ((intensity_ranges[0][i+1] - intensity_ranges[0][i]))
-            holder.append(x)
-        except IndexError:
-            break
+    # Shifts the inverted curves up so they match where they're supposed to be
+    # TODO: Fix this bit
 
-    holder1 = []
-    for i in range(len(gaussian_peaks[0])):
-        try:
-            x = ((gaussian_peaks[0][i+1] - gaussian_peaks[0][i]))
-            holder1.append(x)
-        except IndexError:
-            break
+    inverted_gaussian = []
+    subpeak_holder = []
+    if flip_value == -1:
+        # Pulls subpeak of intensity ranges
+        for subpeak in range(len(intensity_ranges)):
+            ##print('subpeak', intensity_ranges[subpeak])
+            # Looks at individual (original) points inside the subpeak of intensity values
+            # The intensity ranges sets are all the same size, so i can be used for both
+            for i in range(len(intensity_ranges[subpeak])):
+                ##print('calc_point', intensity_ranges[subpeak][i])
+                # Looks at individual (calculated) point inside the subpeak of gaussian_peaks
+                a = gaussian_peaks[subpeak][i]
+                ##print('a',a)
+                # Takes the difference between the gaussian and the original intensity value
+                difference = a - abs(intensity_ranges[subpeak][i])
+                # Adds the difference between the two points to the calculated peak
+                # set the curves on the same level
+                new_value = gaussian_peaks[subpeak][i] - difference
+            subpeak_holder.append(new_value)
+            #print(subpeak_holder)
+        inverted_gaussian.append(subpeak_holder)
 
-    #print(' Δ b/t points in original: ', holder)
-    #print(' Δ b/t points in calculated: ', holder1)
+    print(inverted_gaussian)
 
-    return gaussian_peaks
+    return gaussian_peaks,inverted_gaussian
 
 def intensity_peaks(local_peak_points):
 
@@ -324,29 +337,52 @@ def intensity_peaks(local_peak_points):
 
     return intensity_ranges
 
-def peak_print(peak_list_global,full_peak_list,gaussian_peaks):
+def peak_print(peak_list_global,full_peak_list,calculated_peaks,color,flip_value):
 
     low_frequency_peaks_arr = peak_list_global[0]
     high_frequency_peaks_arr = peak_list_global[1]
     low_intensity_peaks_arr = peak_list_global[2]
     high_intensity_peaks_arr = peak_list_global[3]
 
-    for i in range(5):
-        plt.plot(full_peak_list[i],gaussian_peaks[i], color = 'green')
+    gaussian_peaks = calculated_peaks[0]
+    inverted_gaussian = calculated_peaks[1]
+
+    # Determines if the function is printing the inverted or the
+    # non-inverted curves
+
+    if flip_value == 1:
+        for i in range(5):
+            plt.plot(full_peak_list[i],gaussian_peaks[i], color = color)
+    elif flip_value == -1:
+        for i in range(5):
+            plt.plot(full_peak_list[i],inverted_gaussian[i], color = color)
 
     plt.plot(freq_arr,inten_arr, color = 'grey')
     plt.scatter(low_frequency_peaks_arr, low_intensity_peaks_arr, s=8, color='red')
     plt.scatter(high_frequency_peaks_arr, high_intensity_peaks_arr, s=8, color='black')
-    plt.show()
+    #plt.show()
 
 def main():
+
+    color1 = 'green'
 
     peak_list_global = peak_calc(low_peaks_dict, high_peaks_dict)
     peak_list_local_bound = min_max_min_id(peak_list_global)
     full_peak_list = peak_break(peak_list_local_bound,freq_arr)
     intensity_ranges = intensity_peaks(full_peak_list)
-    gaussian_peaks = gaussian_calc(full_peak_list, min_max_min_id(peak_list_global), peak_list_global,intensity_ranges)
-    peak_print(peak_list_global,full_peak_list,gaussian_peaks,)
+    gaussian_peaks = gaussian_calc(full_peak_list, min_max_min_id(peak_list_global), peak_list_global,intensity_ranges,1)
+    peak_print(peak_list_global,full_peak_list,gaussian_peaks,color1,1)
+
+
+    color2 = 'red'
+    peak_list_global = peak_calc(low_peaks_INVERT_dict, high_peaks_INVERT_dict)
+    peak_list_local_bound = min_max_min_id(peak_list_global)
+    full_peak_list = peak_break(peak_list_local_bound,freq_arr)
+    intensity_ranges = intensity_peaks(full_peak_list)
+    gaussian_peaks = gaussian_calc(full_peak_list, min_max_min_id(peak_list_global), peak_list_global,intensity_ranges,-1)
+    peak_print(peak_list_global,full_peak_list,gaussian_peaks,color2,1)
+
+    plt.show()
 
 if __name__ == '__main__':
     main()
