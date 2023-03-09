@@ -180,8 +180,6 @@ def min_max_min_id(peak_list_global):
 
 def peak_break(peak_list_local,freq_arr):
 
-    # TODO: Increase the number of points that this function adds to each sublist
-
     # kicks the first value of the list off because it just tells you
     # if the first value is a high or low point. It's important, but not here.
     peak_list_local.pop(0)
@@ -202,8 +200,14 @@ def peak_break(peak_list_local,freq_arr):
 
     # Adds points to gaussian range calculation
     # TODO: Fix weird double plotting thing
+    # Problem: It adds the points in a weird fucking order, I think it's a list slicing thing
 
-    print(local_peak_points)
+    # Adding points to the range of the gaussian calculation makes it better
+    # so this guy goes and adds extra points to each side of each sublist from the
+    # sublists on either side to increase the range.
+
+    # Yes, I recognize that from a time complexity standpoint this is a horrible
+    # way to do this
 
     for i in range(len(local_peak_points)):
         try:
@@ -215,6 +219,9 @@ def peak_break(peak_list_local,freq_arr):
                 #back.reverse()
                 for k in range(len(back)):
                     local_peak_points[i].insert(0,back[k])
+            # if you try to do this for an index of zero (the first sublist), it'll error out,
+            # so the first peak just won't be as accurate. No way around that
+            # without making up data.
             elif i == 0:
                 pass
         except IndexError:
