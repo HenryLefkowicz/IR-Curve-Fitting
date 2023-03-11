@@ -304,27 +304,21 @@ def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intens
         # Pulls subpeak of intensity ranges
         for subpeak in range(len(intensity_ranges)):
             subpeak_holder = []
-            ##print('subpeak', intensity_ranges[subpeak])
             # Looks at individual (original) points inside the subpeak of intensity values
             # The intensity ranges sets are all the same size, so i can be used for both
             for i in range(len(intensity_ranges[subpeak])):
-                ##print('calc_point', intensity_ranges[subpeak][i])
                 # Looks at individual (calculated) point inside the subpeak of gaussian_peaks
                 a = gaussian_peaks[subpeak][i]
-                ##print('a',a)
                 # Takes the difference between the gaussian and the original intensity value
-                difference = a - abs(intensity_ranges[subpeak][i])
+                difference = abs(a - abs(intensity_ranges[subpeak][i]))
                 # Adds the difference between the two points to the calculated peak
                 # set the curves on the same level
                 new_value = gaussian_peaks[subpeak][i] + difference
                 subpeak_holder.append(new_value)
-            #print(subpeak_holder)
             inverted_gaussian.append(subpeak_holder)
+    return gaussian_peaks, inverted_gaussian
 
-
-    print('inverted_gaussian',inverted_gaussian)
-
-    return gaussian_peaks,inverted_gaussian
+    return gaussian_peaks
 
 def intensity_peaks(local_peak_points):
 
@@ -336,7 +330,6 @@ def intensity_peaks(local_peak_points):
             #print(point)
             sbpk.append(ir_dict[int(point)])
         intensity_ranges.append(sbpk)
-
 
     return intensity_ranges
 
@@ -350,9 +343,6 @@ def peak_print(peak_list_global,full_peak_list,calculated_peaks,color,flip_value
     gaussian_peaks = calculated_peaks[0]
     inverted_gaussian = calculated_peaks[1]
 
-    print(len(full_peak_list[1]))
-    print(len(gaussian_peaks[1]))
-    print(len(inverted_gaussian[1]))
 
     # Determines if the function is printing the inverted or the
     # non-inverted curves
