@@ -310,11 +310,14 @@ def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intens
             #print(len(subpeak_gaussian))
             gaussian_peaks.append(subpeak_gaussian)
 
-    # for i in gaussian_peaks:
-    #     print(i)
-    #     print(len(i))
-    #print('gaussian_peaks', gaussian_peaks)
-    return gaussian_peaks
+    combined_gaussian = []
+    for i in range(len(freq_arr)):
+        holder = [item[i] for item in gaussian_peaks]
+        print(len(holder))
+        combined_gaussian.append(sum(holder))
+        #print(holder)
+    print(len(combined_gaussian))
+    return combined_gaussian
 
 def intensity_peaks(local_peak_points):
 
@@ -344,8 +347,7 @@ def peak_print(peak_list_global,full_peak_list,calculated_peaks,color,flip_value
     print(freq_arr)
 
     if flip_value == 1:
-        for i in range(5):
-            plt.plot(freq_arr,gaussian_peaks[i], color = color)
+        plt.plot(freq_arr,gaussian_peaks, color = color)
 
 
     plt.plot(freq_arr,inten_arr, color = 'grey')
