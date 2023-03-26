@@ -310,6 +310,7 @@ def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intens
             #print(len(subpeak_gaussian))
             gaussian_peaks.append(subpeak_gaussian)
 
+# This adds all the points together, but you might need to do a convolution instead
     combined_gaussian = []
     for i in range(len(freq_arr)):
         holder = [item[i] for item in gaussian_peaks]
