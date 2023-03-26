@@ -216,29 +216,33 @@ def peak_break(peak_list_local,freq_arr):
     # this way, local_peak_points is the only one that gets changed
     uc_local_peak_points = local_peak_points
 
-    for i in range(len(local_peak_points)):
-        try:
-            front = uc_local_peak_points[i+1][0:8]
-            for j in range(len(front)):
-                local_peak_points[i].append(front[j])
-            if i != 0:
-                back = uc_local_peak_points[i-1][-8:]
-                #back.reverse()
-                for k in range(len(back)):
-                    local_peak_points[i].insert(0,back[k])
-            # if you try to do this for an index of zero (the first sublist), it'll error out,
-            # so the first peak just won't be as accurate. No way around that
-            # without making up data.
-            elif i == 0:
-                pass
-        except IndexError:
-            break
+    # for i in range(len(local_peak_points)):
+    #     try:
+    #         front = uc_local_peak_points[i+1][0:8]
+    #         for j in range(len(front)):
+    #             local_peak_points[i].append(front[j])
+    #         if i != 0:
+    #             back = uc_local_peak_points[i-1][-8:]
+    #             #back.reverse()
+    #             for k in range(len(back)):
+    #                 local_peak_points[i].insert(0,back[k])
+    #         # if you try to do this for an index of zero (the first sublist), it'll error out,
+    #         # so the first peak just won't be as accurate. No way around that
+    #         # without making up data.
+    #         elif i == 0:
+    #             pass
+    #     except IndexError:
+    #         break
 
     return local_peak_points
 
 def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intensity_ranges,flip_value):
 
     # TODO: Change Gaussian calculation to increase range
+    print('peak_list_global',peak_list_global)
+    print('peak_list_local_bound',peak_list_local_bound)
+    print('full peak list', full_peak_list)
+    print('inte', inten)
 
     flip_value = flip_value
 
@@ -253,6 +257,11 @@ def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intens
     :param flip_value: tells the function if it's doing the inverse or non-inverse calculation
     :return: List of each calculated gaussian value for each subpeak
     '''
+
+    # Required:
+    # Stand. Dev for local peak range
+    # Peak Height for local peak range
+    # All other points
 
     gaussian_peaks = []
 
@@ -289,37 +298,18 @@ def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intens
             a = peak_list_global[3][subpeak]
             mu = stdev(full_peak_list[subpeak])
             b = peak_list_local_bound[subpeak+1][1]
-            for point in full_peak_list[subpeak]:
+            for point in inten:
                 over = (point-b)**2
                 under = 2*(mu**2)
                 exp = -(over/under)
+                print(exp)
                 calc = a * e**(exp)
+                #print(a)
                 subpeak_gaussian.append(calc * flip_value)
-            gaussian_peaks.append(subpeak_gaussian)
+        gaussian_peaks.append(subpeak_gaussian)
 
-    # Shifts the inverted curves up so they match where they're supposed to be
-    # TODO: Fix this bit
-    # TODO: Also check to make sure that all the lists are the same and graph correctly
 
-    inverted_gaussian = []
-    if flip_value == -1:
-        # Pulls subpeak of intensity ranges
-        for subpeak in range(len(intensity_ranges)):
-            subpeak_holder = []
-            # Looks at individual (original) points inside the subpeak of intensity values
-            # The intensity ranges sets are all the same size, so i can be used for both
-            for i in range(len(intensity_ranges[subpeak])):
-                # Looks at individual (calculated) point inside the subpeak of gaussian_peaks
-                a = gaussian_peaks[subpeak][i]
-                # Takes the difference between the gaussian and the original intensity value
-                difference = abs(a - abs(intensity_ranges[subpeak][i]))
-                # Adds the difference between the two points to the calculated peak
-                # set the curves on the same level
-                new_value = gaussian_peaks[subpeak][i] + difference
-                subpeak_holder.append(new_value)
-            inverted_gaussian.append(subpeak_holder)
-    return gaussian_peaks, inverted_gaussian
-
+    print('gaussian_peaks', gaussian_peaks)
     return gaussian_peaks
 
 def intensity_peaks(local_peak_points):
