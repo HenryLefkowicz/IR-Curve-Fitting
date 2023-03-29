@@ -240,12 +240,6 @@ def peak_break(peak_list_local,freq_arr):
 
 def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intensity_ranges,flip_value):
 
-    # TODO: Change Gaussian calculation to increase range
-    # print('peak_list_global',peak_list_global)
-    # print('peak_list_local_bound',peak_list_local_bound)
-    # print('full peak list', full_peak_list)
-    # print('inte', inten)
-
     flip_value = flip_value
 
     '''
@@ -311,6 +305,7 @@ def gaussian_calc(full_peak_list, peak_list_local_bound, peak_list_global,intens
             gaussian_peaks.append(subpeak_gaussian)
 
 # This adds all the points together, but you might need to do a convolution instead
+# TODO: Check to make sure this is the right way to do this
     combined_gaussian = []
     for i in range(len(freq_arr)):
         holder = [item[i] for item in gaussian_peaks]
@@ -332,6 +327,20 @@ def intensity_peaks(local_peak_points):
         intensity_ranges.append(sbpk)
 
     return intensity_ranges
+
+def optimizer():
+
+    '''
+
+    1. Import freq_arr
+
+    :return:
+    '''
+
+
+    pass
+
+
 
 def peak_print(peak_list_global,full_peak_list,calculated_peaks,color,flip_value):
 
