@@ -5,9 +5,8 @@ from scipy.signal import find_peaks
 from statistics import stdev
 from collections import OrderedDict
 import math
-import pandas
+import pandas as pd
 
-#change
 
 # TODO: Update documentation (7/03/2023)
 # Why do I have a sinking feeling that this isn't going to fit different IRs well...
@@ -22,70 +21,67 @@ ir_int = []
 ir_fr = []
 
 # Open file as CSV
-
 with open ('test.csv', 'r') as csv_file:
-    data = csv.reader(csv_file, delimiter = ',')
+    df_data = pd.read_csv(csv_file, sep=",", header=2)
 
-# Remove the first 2 data points because they're not spectra related
-    for i in data:
-        values.append(i)
-        values_new= values[n:]
+# Required function for np.vectorize. Does the math to convert transmitence into absorbance
+def logcalc(x):
+    return -(math.log10(float(x) / 100))
 
-# Put the datapoints in a dictionary
-    for pair in values_new:
-            ir_dict[float(pair[0])] = -(math.log10( float(pair[1]) / 100 ))
-
-# TODO: Put all this shit in a function
-# Converts dictionary into nested list
-# TODO: Write file of (Freq, Absorbance)
-    pointlist = sorted(ir_dict.items())
-
-#Unzips nested list into a frequency and absorption (intensity) lists
-    freq,inten = zip(*pointlist)
-    #freq = list(freq)
-# Takes intensity and converts it to an array
-# Removes noise from intensity values
-    inten_arr =  np.array(inten)
-    freq_arr = np.array(freq)
-    noise = min(inten_arr)
-    holder = []
-    for i in range(len(inten_arr)):
-        holder.append(inten_arr[i]-noise)
-    inten_arr = np.array(holder)
+# Converts data into array N2-Dim Array
+# Col 1: Frequency, Col 2: Transmittence
+array_df = df_data.to_numpy(dtype = 'float32')
+frequency = array_df[:,0]
+# Iterates through Col 2 and converts Transmittence into Absorbance
+absorbance_calc = np.vectorize(logcalc)
+intensity = absorbance_calc(array_df[:,1])
+# Takes minimum value of intensity to remove from all points
+noise =  min(intensity)
+# Required function for np.vectorize. Does the math to remove noise from data
+def denoise(x,noise):
+    return x - noise
+# Iterates through Col 2 and converts absorbance values into denoise-d absorbance values
+denoise_intensity = np.vectorize(denoise)
+absorbance = denoise_intensity(intensity, noise)
 
 
-# Find peaks from intensity data
-# find_peaks returns the INDICES of the peaks, *NOT* the peaks themselves
-# this has to be done in two sets because find_peaks() can't find both at once
-# TODO: Identify flat regions / inflection points
-    low_peaks, low_ = find_peaks(-inten_arr)
-    high_peaks, high_ = find_peaks(inten_arr)
+plt.scatter(frequency, absorbance, s=1, color='black')
+plt.show()
 
-# converts arrays (find_peaks output) into lists for comprehension
-    low_peaks_list = low_peaks.tolist()
-    high_peaks_list = high_peaks.tolist()
-# combines and sorts the two lists to make one master one.
-    combined_peak_list = low_peaks_list + high_peaks_list
-    combined_peak_list.sort()
 
-# converts lists into dicts
-    low_peaks_dict = {}
-    high_peaks_dict = {}
-    combined_peaks_dict = {}
 
-    for i in low_peaks:
-        low_peaks_dict[pointlist[i][0]] = pointlist[i][1] - noise
-    for i in high_peaks:
-        high_peaks_dict[pointlist[i][0]] = pointlist[i][1] - noise
-    for i in combined_peak_list:
-        combined_peaks_dict[pointlist[i][0]] = pointlist[i][1] - noise
-
-    low_peaks_INVERT_dict = high_peaks_dict
-    high_peaks_INVERT_dict = low_peaks_dict
-
-    # print('LPD', low_peaks_dict)
-    # print('HPD', high_peaks_dict)
-    # print('CPD', combined_peaks_dict)
+# # Find peaks from intensity data
+# # find_peaks returns the INDICES of the peaks, *NOT* the peaks themselves
+# # this has to be done in two sets because find_peaks() can't find both at once
+# # TODO: Identify flat regions / inflection points
+# low_peaks, low_ = find_peaks(-inten_arr)
+# high_peaks, high_ = find_peaks(inten_arr)
+#
+# # converts arrays (find_peaks output) into lists for comprehension
+# low_peaks_list = low_peaks.tolist()
+# high_peaks_list = high_peaks.tolist()
+# # combines and sorts the two lists to make one master one.
+# combined_peak_list = low_peaks_list + high_peaks_list
+# combined_peak_list.sort()
+#
+# # converts lists into dicts
+#     low_peaks_dict = {}
+#     high_peaks_dict = {}
+#     combined_peaks_dict = {}
+#
+#     for i in low_peaks:
+#         low_peaks_dict[pointlist[i][0]] = pointlist[i][1] - noise
+#     for i in high_peaks:
+#         high_peaks_dict[pointlist[i][0]] = pointlist[i][1] - noise
+#     for i in combined_peak_list:
+#         combined_peaks_dict[pointlist[i][0]] = pointlist[i][1] - noise
+#
+#     low_peaks_INVERT_dict = high_peaks_dict
+#     high_peaks_INVERT_dict = low_peaks_dict
+#
+#     # print('LPD', low_peaks_dict)
+#     # print('HPD', high_peaks_dict)
+#     # print('CPD', combined_peaks_dict)
 
 def peak_calc(low_peaks_dict, high_peaks_dict):
     '''
@@ -113,7 +109,63 @@ def peak_calc(low_peaks_dict, high_peaks_dict):
 
     return (low_peaks_frequency_arr,high_peaks_frequency_arr,
             low_peaks_intensity_arr,high_peaks_intensity_arr)
+def peak_break(peak_list_local,freq_arr):
 
+    # kicks the first value of the list off because it just tells you
+    # if the first value is a high or low point. It's important, but not here.
+    peak_list_local.pop(0)
+
+    local_peak_points = []
+    sub = []
+
+    print(peak_list_local)
+
+    # goes through each peak range and then creates a list of all the integers
+    # that are in that peak range, not just the bounds
+    # and stores them in a sublist bc you need it for gaussian calculations and shit
+
+    for i in range(len(peak_list_local)):
+        for j in range(len(freq_arr)):
+            if freq_arr[j] >= peak_list_local[i][0] and freq_arr[j] <= peak_list_local[i][-1]:
+                sub.append(freq_arr[j])
+        local_peak_points.append(sub)
+        sub = []
+
+    # Adds points to gaussian range calculation
+    # TODO: Fix weird double plotting thing
+    # Problem: It adds the points in a weird fucking order, I think it's a list slicing thing
+
+    # Adding points to the range of the gaussian calculation makes it better
+    # so this guy goes and adds extra points to each side of each sublist from the
+    # sublists on either side to increase the range.
+
+    # Yes, I recognize that from a time complexity standpoint this is a horrible
+    # way to do this
+
+    # Creates a reference version of local_peak_points that never changes size
+    # so you can look at it to figure out what points you need to add
+    # this way, local_peak_points is the only one that gets changed
+    uc_local_peak_points = local_peak_points
+
+    # for i in range(len(local_peak_points)):
+    #     try:
+    #         front = uc_local_peak_points[i+1][0:8]
+    #         for j in range(len(front)):
+    #             local_peak_points[i].append(front[j])
+    #         if i != 0:
+    #             back = uc_local_peak_points[i-1][-8:]
+    #             #back.reverse()
+    #             for k in range(len(back)):
+    #                 local_peak_points[i].insert(0,back[k])
+    #         # if you try to do this for an index of zero (the first sublist), it'll error out,
+    #         # so the first peak just won't be as accurate. No way around that
+    #         # without making up data.
+    #         elif i == 0:
+    #             pass
+    #     except IndexError:
+    #         break
+
+    return local_peak_points
 def min_max_min_id(peak_list_global):
 
     # Decode peak_list into individual data streams
@@ -190,6 +242,8 @@ def peak_break(peak_list_local,freq_arr):
 
     local_peak_points = []
     sub = []
+
+    print(peak_list_local)
 
     # goes through each peak range and then creates a list of all the integers
     # that are in that peak range, not just the bounds
