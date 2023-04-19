@@ -67,7 +67,7 @@ def file_import(ir_file):
     for i in combined_peak_locations:
         combined_peak_frequencies.append(x_values[i])
 
-    return combined_array, combined_peak_locations, combined_peak_frequencies
+    return combined_array, combined_peak_locations, combined_peak_frequencies, combined_peak_abs
 
 peak_info = file_import('test.csv')
 
@@ -75,45 +75,70 @@ peak_info = file_import('test.csv')
 combined_array = peak_info[0]
 combined_peak_locations = peak_info[1]
 combined_peak_frequencies = peak_info[2]
+combined_peak_abs = peak_info[3]
+peak_freq_abs_array = np.vstack((combined_peak_frequencies,combined_peak_abs)).T
 
-def window(block_peaks, block_size,combined_peak_locations,combined_array):
+
+def window(block_peaks, block_size, window_start, window_end, combined_peak_locations,
+           combined_array,peak_freq_abs_array):
 
     freq = combined_array[:,0].tolist()
     abs = combined_array[:,1].tolist()
     combined_array = combined_array.tolist()
     peak_blocks_index = []
 
+    peak_freq_abs_dict = {}
+    for j, k in peak_freq_abs_array:
+        peak_freq_abs_dict[j] = k
+
     freq_abs_dict = {}
     for j,k in combined_array:
         freq_abs_dict[j] = k
 
     for i in range(block_peaks):
-
         peak_blocks_index.append(combined_peak_locations[0:block_size+1])
         combined_peak_locations = combined_peak_locations[block_size:]
 
     peak_blocks_freq_points = []
-
     for i in peak_blocks_index:
         peak_blocks_freq_points.append(freq[i[0]:i[-1]+1])
 
     peak_blocks_abs_points = []
-
     for block in peak_blocks_freq_points:
         temp = []
         for point in block:
             temp.append(freq_abs_dict[point])
         peak_blocks_abs_points.append(temp)
 
-    return peak_blocks_freq_points, peak_blocks_abs_points
+    pbfp = peak_blocks_freq_points[window_start:window_end+1]
+    print(pbfp)
+    pbap = peak_blocks_abs_points[window_start:window_end+1]
 
-window = window(3,2,combined_peak_locations,combined_array)
+
+    pbpaf = [] # peak_blocks_peak_abs_freq
+    for subpeak in pbfp:
+        for point in subpeak:
+            temp = []
+            if point in peak_freq_abs_dict:
+                temp += point, peak_freq_abs_dict[point]
+                pbpaf.append(temp)
+
+    return pbfp, pbap ,pbpaf
+
+window = window(7,1,3,4,combined_peak_locations,combined_array,peak_freq_abs_array)
+print(combined_peak_frequencies)
 freq = window[0]
-print('Freq:',freq)
-print(freq[0])
 abs = window[1]
+pbpaf = window[2]
+
+print('Freq:',freq)
 print('Abs:',abs)
-print(abs[0])
+print('Peak F:A Pairs', pbpaf)
+
+concat_freq = [j for i in window[0] for j in i]
+concat_abs = [j for i in window[1] for j in i]
+
+#plt.plot(concat_freq,concat_abs)
 
 # Create a normal distribution for data
 def norm(x, mean, sd):
@@ -124,30 +149,41 @@ def norm(x, mean, sd):
 
 normalized_block = []
 
-for i in abs:
-    mean = statistics.mean(i)
-    stdev = statistics.stdev(i)
-    print('mean',mean,'stddev',stdev)
-    normal_dist = norm(i,mean,stdev)
-    normalized_block.append(normal_dist)
+mean = statistics.mean(concat_freq)
+stdev = statistics.stdev(concat_freq)
+
+print('mean',mean,'stddev',stdev)
+normal_dist = norm(concat_freq,mean,stdev)
+normalized_block.append(normal_dist)
 
 fig, axs = plt.subplots(2)
-axs[0].plot(freq[0],abs[0],color = 'red')
-axs[1].plot(freq[0],normalized_block[0], color = 'blue')
+axs[0].set_title('Original Data')
+axs[1].set_title('Normalized Data')
 
+axs[0].plot(concat_freq,concat_abs,color = 'red')
+axs[1].plot(concat_freq,normalized_block[0], color = 'blue')
+
+for i,(freq,abs) in enumerate(pbpaf):
+    axs[0].scatter(freq,abs,color = 'orange')
+    axs[1].scatter(freq,abs,color = 'orange')
+
+axs[0].scatter(pbpaf[0][0],pbpaf[0][1],color = 'orange', label = 'Peak Locations')
+axs[0].legend(loc = 'upper right')
+axs[1].scatter(pbpaf[0][0],pbpaf[0][1],color = 'orange', label = 'Peak Locations')
+axs[1].legend(loc = 'upper right')
+
+fig.tight_layout()
+plt.legend()
 plt.show()
-
-# for norm_abs in normalized_block:
-#     for freq in freq:
-#         plt.plot(norm_abs,freq,color = 'black')
-
-print(normalized_block)
 
 mean1, mean2 = 0, -2
 std1, std2 = 0.5, 1
 
 x = np.linspace(-20, 20, 500)
 y_real = norm(x, mean1, std1) + norm(x, mean2, std2)
+
+
+print(y_real)
 
 ######################################
 # Solving
@@ -163,18 +199,21 @@ def res(p, y, x):
   m1 = m
   m2 = m1 + dm
   y_fit = norm(x, m1, sd1) + norm(x, m2, sd2)
+  # creates bivariate normal distribution by using the norm function which creates a normal curve
+  # based on the x values and the initial guesses for the mean and stddev
   err = y - y_fit
   return err
 
 plsq = leastsq(res, p, args = (y_real, x))
+plsq1 = leastsq(res,p,args = ())
 print(plsq)
 
 y_est = norm(x, plsq[0][0], plsq[0][2]) + norm(x, plsq[0][0] + plsq[0][1], plsq[0][3])
 
 plt.plot(x, y_real, label='Real Data')
-#plt.plot(x, y_init, 'r.', label='Starting Guess')
-plt.plot(x,norm(x, plsq[0][0], plsq[0][2]), label = 'Peak 1') # Peak 1
-plt.plot(x,norm(x, plsq[0][0] + plsq[0][1], plsq[0][3]), label = 'Peak 2') # Peak 2
-plt.plot(x, y_est, 'g.', label='Fitted')
+# #plt.plot(x, y_init, 'r.', label='Starting Guess')
+# plt.plot(x,norm(x, plsq[0][0], plsq[0][2]), label = 'Peak 1') # Peak 1
+# plt.plot(x,norm(x, plsq[0][0] + plsq[0][1], plsq[0][3]), label = 'Peak 2') # Peak 2
+# plt.plot(x, y_est, 'g.', label='Fitted')
 plt.legend()
 plt.show()
