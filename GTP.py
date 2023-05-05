@@ -6,59 +6,72 @@ import pandas as pd
 from scipy.signal import find_peaks
 import statistics
 
+
+def file_import(ir_file):
 # Open file as CSV
-with open ('test.csv', 'r') as csv_file:
-    df_data = pd.read_csv(csv_file, sep=",", header=2)
+    with open (ir_file, 'r') as csv_file:
+        df_data = pd.read_csv(csv_file, sep=",", header=2)
 
 # Required function for np.vectorize. Does the math to convert transmitence into absorbance
-def logcalc(x):
-    return -(math.log10(float(x) / 100))
+    def logcalc(x):
+        return -(math.log10(float(x) / 100))
 
-# TODO: Put this in a function so you don't look like a fucking idiot
-# Converts data into array N2-Dim Array
-# Col 1: Frequency, Col 2: Transmittence
-array_df = df_data.to_numpy(dtype = 'float32')
-frequency = array_df[:,0]
-frequency = frequency[::-1]
-# Iterates through Col 2 and converts Transmittence into Absorbance
-absorbance_calc = np.vectorize(logcalc)
-intensity = absorbance_calc(array_df[:,1])
+    # TODO: Put this in a function so you don't look like a fucking idiot
+    # Converts data into (number of datapoints) X 2 matrix
+    # Col 1: Frequency, Col 2: Transmittance
+    array_df = df_data.to_numpy(dtype = 'float32')
+    frequency = array_df[:,0]
+    frequency = frequency[::-1]
 
-# Takes minimum value of intensity to remove from all points
-noise =  min(intensity)
-# Required function for np.vectorize. Does the math to remove noise from data
-def denoise(x,noise):
-    return x - noise
-# Iterates through Col 2 and converts absorbance values into denoise-d absorbance values
-denoise_intensity = np.vectorize(denoise)
-absorbance = denoise_intensity(intensity, noise)
-absorbance = absorbance[::-1]
-intensity = intensity[::-1]
+    # Iterates through Col 2 and converts transmittance into absorbance
+    absorbance_calc = np.vectorize(logcalc)
+    intensity = absorbance_calc(array_df[:,1])
 
-combined_array = np.column_stack((frequency,absorbance))
-high_peak_locations = find_peaks(absorbance)
-high_peak_locations = high_peak_locations[0].tolist()
-low_peak_locations = find_peaks(-absorbance)
-low_peak_locations = low_peak_locations[0].tolist()
+    # Takes minimum value of intensity to remove from all points
+    noise =  min(intensity)
 
-combined_peak_locations = sorted(high_peak_locations + low_peak_locations)
+    # Required function for np.vectorize. Does the math to remove noise from data
+    def denoise(x,noise):
+        return x - noise
+    # Iterates through Col 2 and converts absorbance values into denoise-d absorbance values
+    denoise_intensity = np.vectorize(denoise)
+    absorbance = denoise_intensity(intensity, noise)
+    absorbance = absorbance[::-1]
+    intensity = intensity[::-1]
 
+    # Makes new combined array
+    combined_array = np.column_stack((frequency,absorbance))
 
-combined_peak_freq = []
-combined_peak_abs = []
+    # Finds high and low peaks
+    high_peak_locations = find_peaks(absorbance)
+    high_peak_locations = high_peak_locations[0].tolist()
+    low_peak_locations = find_peaks(-absorbance)
+    low_peak_locations = low_peak_locations[0].tolist()
 
-for i in combined_peak_locations:
-    combined_peak_freq.append(frequency[i])
-    combined_peak_abs.append(absorbance[i])
+    # Combines peak lists together
+    combined_peak_locations = sorted(high_peak_locations + low_peak_locations)
 
-x_values = combined_array[:,0].tolist()
-y_values = combined_array[:,1].tolist()
+    combined_peak_freq = []
+    combined_peak_abs = []
 
-combined_peak_frequencies = []
-for i in combined_peak_locations:
-    combined_peak_frequencies.append(x_values[i])
+    for i in combined_peak_locations:
+        combined_peak_freq.append(frequency[i])
+        combined_peak_abs.append(absorbance[i])
 
+    x_values = combined_array[:,0].tolist()
+    y_values = combined_array[:,1].tolist()
 
+    combined_peak_frequencies = []
+    for i in combined_peak_locations:
+        combined_peak_frequencies.append(x_values[i])
+
+    return combined_array, combined_peak_locations, combined_peak_frequencies
+
+peak_info = file_import('test.csv')
+# Decodes datastreams from file_import function
+combined_array = peak_info[0]
+combined_peak_locations = peak_info[1]
+combined_peak_frequencies = peak_info[2]
 def window(range_over,combined_peak_locations,combined_array,combined_peak_frequencies):
 
     '''
@@ -122,7 +135,7 @@ def window(range_over,combined_peak_locations,combined_array,combined_peak_frequ
 
     return sh_freq,sh_abs, sh_peaks_freq, sh_peaks_abs
 
-window = window(2,combined_peak_locations,combined_array,combined_peak_frequencies)
+window = window(3,combined_peak_locations,combined_array,combined_peak_frequencies)
 
 # Decodes datastreams from window function
 xdata = window[0]
