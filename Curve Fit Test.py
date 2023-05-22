@@ -7,8 +7,11 @@ import math
 import pandas as pd
 from scipy.signal import find_peaks
 import statistics
+import random
+from scipy.stats import norm
 
 def file_import(ir_file):
+
 # Open file as CSV
     with open (ir_file, 'r') as csv_file:
         df_data = pd.read_csv(csv_file, sep=",", header=2)
@@ -79,6 +82,22 @@ peak_freq_abs_array = np.vstack((combined_peak_frequencies,combined_peak_abs)).T
 def window(block_peaks, block_size, window_start, window_end, combined_peak_locations,
            combined_array,peak_freq_abs_array):
 
+    '''
+
+    :param block_peaks: How many blocks you want
+    :param block_size: How many subpeaks in each block
+    :param window_start: What subpeak the window starts at
+    :param window_end: What subpeak the window ends at
+    ## NOTE: The window ranges can override the block_peaks parameter.
+    you can calculate N number of peaks, and it will give you that data points for all of those
+    but you can still additionally truncate that with the window start:stop parameter
+    :param combined_peak_locations: A list of where all the peaks are
+    :param combined_array: All the freq:abs points for the entire data set
+    :param peak_freq_abs_array: An array of the peak freq and abs values for the whole data set
+    :return:Truncated range of datapoints based on parameters. Returns them in 3 separates lists.
+    pbfp (frequency), pbap (absorbance), and pbpaf (peak frequency absorbance pairs)
+    '''
+
     freq = combined_array[:,0].tolist()
     abs = combined_array[:,1].tolist()
     combined_array = combined_array.tolist()
@@ -107,8 +126,10 @@ def window(block_peaks, block_size, window_start, window_end, combined_peak_loca
             temp.append(freq_abs_dict[point])
         peak_blocks_abs_points.append(temp)
 
+    print('peak_blocks_freq_points'
+          ,peak_blocks_freq_points)
+
     pbfp = peak_blocks_freq_points[window_start:window_end+1]
-    print(pbfp)
     pbap = peak_blocks_abs_points[window_start:window_end+1]
 
 
@@ -127,6 +148,11 @@ print(combined_peak_frequencies)
 freq = window[0]
 abs = window[1]
 pbpaf = window[2]
+print('pbpaf',pbpaf)
+
+for i in range(len(freq)):
+    plt.plot(freq[i],abs[i])
+plt.show()
 
 # Takes the concatenated list creates by the window functions and
 # creates a new list without all the sublist stuff. These data points can be used
@@ -144,13 +170,34 @@ print('Abs:',abs)
 print('Peak F:A Pairs', pbpaf)
 
 # Create a normal distribution for data
-def norm(x, mean, sd):
-  norm = []
-  for i in range(len(x)):
-    norm += [1.0/(sd*np.sqrt(2*np.pi))*np.exp(-(x[i] - mean)**2/(2*sd**2))]
-  return np.array(norm)
+def normal(x, mean, sd):
+
+    '''
+    Makes normal curves used for just about everything else.
+
+    :param x: Individual X Point
+    :param mean: Mean of the data
+    :param sd: Standard deviation
+    :return: Returns a normal curve based on the inputted parameters.
+    '''
+
+    norm = []
+    for i in range(len(x)):
+        norm += [1.0/(sd*np.sqrt(2*np.pi))*np.exp(-(x[i] - mean)**2/(2*sd**2))]
+    return np.array(norm)
+
 
 def plotter(concat_freq,concat_abs):
+
+    '''
+
+    This guy just plots stuff. Useful mostly because it keeps thing tidy,
+    but I'm not actually using it for anything right now.
+
+    :param concat_freq: The actual frequency values in the range generated from the window function
+    :param concat_abs: The actual abs values in the range generated from the window function
+    :return:
+    '''
 
     normalized_block = []
     concat_freq,concat_abs = concat_freq,concat_abs
@@ -194,15 +241,131 @@ actual_x = concat_freq
 actual_y = concat_abs
 
 # Shows the initial curve guesses
-y_init = norm(actual_x, actual_mean, actual_stdev) + norm(actual_x, actual_mean1, actual_stdev1)
+#y_init = norm(actual_x, actual_mean, actual_stdev) + norm(actual_x, actual_mean1, actual_stdev1)
 
-plt.show()
 ### Solving ###
 
 # Initial Guesses
 initial = [actual_mean,actual_mean1,actual_stdev,actual_stdev1]
 
 def actual_res(initial, actual_y, actual_x):
+
+    '''
+
+    :param initial: Set of initial guesses used for the leastsq algorithm
+    :param actual_y: The actual absorbance values in the range generated from the window function
+    :param actual_x: The actual frequency values in the range generated from the window function
+    :return: Returns the difference between the estimated fit and the actual datapoints
+    '''
+
+    actual_y = np.array(actual_y)
+    # Decode Data
+    actual_mean,actual_mean1,actual_stdev,actual_stdev1 = initial
+
+    # Create the fitting as two normal curves
+    actual_y_fit = normal(actual_x, actual_mean, actual_stdev) + \
+                 normal(actual_x, actual_mean1, actual_stdev1)
+
+    # Creates bivariate normal distribution by using the norm function which creates a normal curve
+    # based on the x values and the initial guesses for the mean and stddev
+    err = actual_y - actual_y_fit
+    return err
+
+plsq = leastsq(actual_res, initial, args = (actual_y, actual_x))
+print(actual_res(initial, actual_y, actual_x))
+
+print('plsq ',plsq)
+actual_y_est = normal(actual_x, plsq[0][0], plsq[0][2]) + normal(actual_x, plsq[0][1], plsq[0][3])
+
+plt.plot(actual_x, actual_y, label='Real Data')
+plt.plot(actual_x, actual_y_est, 'r', label='Fitted')
+
+plt.plot(actual_x,normal(actual_x, plsq[0][0], plsq[0][2]), label = 'Peak 1') # Peak 1
+plt.plot(actual_x,normal(actual_x, plsq[0][1], plsq[0][3]), label = 'Peak 2') # Peak 2
+
+# plt.plot(actual_x,normal(actual_x, actual_mean, actual_stdev),'black',label = 'Initial Guess Curve')
+# plt.plot(actual_x,normal(actual_x, actual_mean1, actual_stdev1),'black')
+
+plt.legend()
+#plt.show()
+
+### Recursive Shit ###
+
+# Base Case: Error between actual_y_est and actual_y is less than .005% of actual_y
+
+def average(actual_y, actual_y_est):
+    '''
+    Performs a calculation to determine how close the fitted and the actual curves are. This, fundamentally, is the
+    value that is to be minimized, but it's not used in the leastsq algorithm
+
+    :param actual_y: The actual absorbance values in the range generated from the window function
+    :param actual_y_est: The fitted absorbance values
+    :return: The average percent difference between the actual data and the estimated fit.
+    '''
+    for i in range(len(actual_y)):
+        delta = 0
+        delta += (actual_y_est[i] / actual_y[i])*100
+        return delta/len(actual_y)
+
+print('Average % Δ between fit and real data: ',average(actual_y,actual_y_est))
+
+def actual_res_recursive(pbpaf,actual_x, actual_y, num_curves):
+
+    '''
+
+    :param pbpaf: List of each subpeak's peak absorbance and frequency for the
+    range over which the window function has been called
+    :param actual_x: The actual frequency values in the range generated from the window function
+    :param actual_y: The actual absorbance values in the range generated from the window function
+    :param num_curves: How many curves you want use to try to fit the curve from the real data
+    :return:
+    '''
+
+    # Create initial gaussian curve guesses over the range that we're looking at
+    # Grabs the mean (which you don't need I think), and the Stdev, which you do.
+    mean = statistics.mean(actual_x)
+    stdev = statistics.stdev(actual_x)
+
+
+
+    # For the number of curves that you put in the system, change the mean,
+    # StDev, and Central Peak Location by just a little to get new curves
+    # That can then be optimized
+    guess_holder = []
+    for i in range(num_curves):
+        ind_curve = []
+        curve_mean = float(mean) #* random.uniform(0.99, 0.995)
+        ind_curve.append(round(curve_mean))
+        curve_stdev = float(stdev) #* random.uniform(0.97, 0.99)
+        ind_curve.append(round(curve_stdev))
+        curve_center_abs = float(pbpaf[1][0]) #* random.uniform(0.95, 0.99)
+        ind_curve.append(curve_center_abs)
+        guess_holder.append(ind_curve)
+
+    print(guess_holder)
+
+    actual_x_gaussian = norm.pdf(actual_x,mean,stdev)
+    print('actual_x_gaussian',actual_x_gaussian)
+
+    # Performs the Gaussian Equation to generate the new initial gaussian curves
+    # TODO: Make iterate over each initial gaussian curve guess
+    e = 2.718281
+    holder = []
+    for i in actual_x:
+        over = (i - curve_center_abs) ** 2
+        under = 2 * (curve_stdev ** 2)
+        exp = -(over / under)
+        calc = pbpaf[0][1] * e ** (exp)
+        holder.append(calc)
+
+    # Visualizes the initial guess curves. In reality this isn't strictly required because of the
+    # fact the leastsq algorith requires only mean and standard deviation parameters, but it's
+    # helpful to see what's going on
+    plt.plot(actual_x,holder,'b.',label = 'Initial Guess from Recursive Function')
+    plt.plot(actual_x_gaussian,holder,'y',label = 'Scipy Normal Function Generation')
+    plt.legend()
+    plt.show()
+
 
     actual_y = np.array(actual_y)
     # Decode Data
@@ -215,43 +378,9 @@ def actual_res(initial, actual_y, actual_x):
     # creates bivariate normal distribution by using the norm function which creates a normal curve
     # based on the x values and the initial guesses for the mean and stddev
     err = actual_y - actual_y_fit
-    return err
+    #return err
 
-plsq = leastsq(actual_res, initial, args = (actual_y, actual_x))
-print(actual_res(initial, actual_y, actual_x))
-
-
-print('plsq ',plsq)
-actual_y_est = norm(actual_x, plsq[0][0], plsq[0][2]) + norm(actual_x, plsq[0][1], plsq[0][3])
-plt.plot(actual_x, actual_y, label='Real Data')
-plt.plot(actual_x, actual_y_est, 'r', label='Fitted')
-
-plt.plot(actual_x,norm(actual_x, plsq[0][0], plsq[0][2]), label = 'Peak 1') # Peak 1
-plt.plot(actual_x,norm(actual_x, plsq[0][1], plsq[0][3]), label = 'Peak 2') # Peak 2
-
-# plt.plot(actual_x,norm(actual_x, actual_mean, actual_stdev),'black',label = 'Initial Guess Curve')
-# plt.plot(actual_x,norm(actual_x, actual_mean1, actual_stdev1),'black')
-
-# This just makes the graph larger
-x = np.linspace(0, 1, 1000)
-c =  [0] * 1000
-plt.plot(x,c)
-
-plt.legend()
-plt.show()
-
-### Recursive Shit ###
-
-# Base Case: Error between actual_y_est and actual_y is less than .005% of actual_y
-
-def average(actual_y, actual_y_est):
-    for i in range(len(actual_y)):
-        delta = 0
-        delta += (actual_y_est[i] / actual_y[i])*100
-        return delta/len(actual_y)
-
-print('Average % Δ between fit and real data: ',average(actual_y,actual_y_est))
-
+actual_res_recursive(pbpaf,actual_x, actual_y, 3)
 
 #########
 # Example Data:
