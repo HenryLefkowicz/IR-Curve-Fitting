@@ -224,7 +224,7 @@ def fun_rosenbrock(x):
     return np.array([10 * (x[1] - x[0]**2), (1 - x[0])])
 
 p1 = [450,3]
-p2 = [450,3,455,3]
+p2 = [470,3,475,3]
 p3 = [470,3,475,3,480,3]
 p4 = [470,3,475,3,480,3,470,4]
 
@@ -246,7 +246,6 @@ def gaussian4(x, mean, sd, mean2, sd2, mean3, sd3, mean4, sd4):
             1.0 / (sd * np.sqrt(2 * np.pi)) * np.exp(-(x - mean2) ** 2 / (2 * sd2 ** 2)) + \
         1.0 / (sd * np.sqrt(2 * np.pi)) * np.exp(-(x - mean3) ** 2 / (2 * sd3 ** 2)) + \
     1.0 / (sd * np.sqrt(2 * np.pi)) * np.exp(-(x - mean4) ** 2 / (2 * sd4 ** 2))
-
 
 
 popt,pcov = curve_fit(gaussian2, actual_x_arr, actual_y_arr,p0=p2,bounds = (0,[500,10,500,10]))
