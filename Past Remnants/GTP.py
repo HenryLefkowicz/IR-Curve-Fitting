@@ -67,7 +67,7 @@ def file_import(ir_file):
 
     return combined_array, combined_peak_locations, combined_peak_frequencies
 
-peak_info = file_import('test.csv')
+peak_info = file_import('../test.csv')
 # Decodes datastreams from file_import function
 combined_array = peak_info[0]
 combined_peak_locations = peak_info[1]

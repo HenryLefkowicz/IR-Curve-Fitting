@@ -21,7 +21,7 @@ ir_int = []
 ir_fr = []
 
 # Open file as CSV
-with open ('test.csv', 'r') as csv_file:
+with open ('../test.csv', 'r') as csv_file:
     df_data = pd.read_csv(csv_file, sep=",", header=2)
 
 # Required function for np.vectorize. Does the math to convert transmitence into absorbance

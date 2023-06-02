@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.optimize import leastsq
+from scipy.optimize import least_squares
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
@@ -9,6 +10,7 @@ from scipy.signal import find_peaks
 import statistics
 import random
 from scipy.stats import norm
+import labellines
 
 def file_import(ir_file):
 
@@ -186,7 +188,6 @@ def normal(x, mean, sd):
         norm += [1.0/(sd*np.sqrt(2*np.pi))*np.exp(-(x[i] - mean)**2/(2*sd**2))]
     return np.array(norm)
 
-
 def plotter(concat_freq,concat_abs):
 
     '''
@@ -228,13 +229,20 @@ def plotter(concat_freq,concat_abs):
     plt.legend()
     plt.show()
 
-# Non-Example Data:
+###############
+### leastsq ###
+###############
 
 # Decode + Create Means and Stdevs to use as initial guesses
 actual_mean = mean
-actual_mean1 = actual_mean + (actual_mean*0.01)
+actual_mean1 = actual_mean #(actual_mean*0.001)
+actual_mean2 = actual_mean #(actual_mean1 * 0.001)
+actual_mean3 = actual_mean #(actual_mean1 * 0.001)
+
 actual_stdev = stdev
-actual_stdev1 = actual_stdev + (actual_stdev*0.01)
+actual_stdev1 = actual_stdev#(actual_stdev*0.001)
+actual_stdev2 = actual_stdev#(actual_stdev1*0.001)
+actual_stdev3 = actual_stdev#(actual_stdev1*0.001)
 
 # Uses the actual datapoints as the raw inputs
 actual_x = concat_freq
@@ -246,7 +254,8 @@ actual_y = concat_abs
 ### Solving ###
 
 # Initial Guesses
-initial = [actual_mean,actual_mean1,actual_stdev,actual_stdev1]
+initial = [actual_mean,actual_mean1,actual_mean2,actual_mean3,
+           actual_stdev,actual_stdev1,actual_stdev2,actual_stdev3]
 
 def actual_res(initial, actual_y, actual_x):
 
@@ -260,36 +269,144 @@ def actual_res(initial, actual_y, actual_x):
 
     actual_y = np.array(actual_y)
     # Decode Data
-    actual_mean,actual_mean1,actual_stdev,actual_stdev1 = initial
+    [actual_mean, actual_mean1,
+     actual_mean2,actual_mean3,
+     actual_stdev, actual_stdev1,
+     actual_stdev2, actual_stdev3] = initial
 
     # Create the fitting as two normal curves
     actual_y_fit = normal(actual_x, actual_mean, actual_stdev) + \
-                 normal(actual_x, actual_mean1, actual_stdev1)
+                   normal(actual_x, actual_mean1, actual_stdev1) + \
+                   normal(actual_x,actual_mean2,actual_stdev2) + \
+                   normal(actual_x, actual_mean3, actual_stdev3)
 
-    # Creates bivariate normal distribution by using the norm function which creates a normal curve
+        # Creates bivariate normal distribution by using the norm function which creates a normal curve
     # based on the x values and the initial guesses for the mean and stddev
-    err = actual_y - actual_y_fit
+    err = (actual_y_fit - actual_y)
     return err
 
 plsq = leastsq(actual_res, initial, args = (actual_y, actual_x))
-print(actual_res(initial, actual_y, actual_x))
+#print(actual_res(initial, actual_y, actual_x))
 
-print('plsq ',plsq)
-actual_y_est = normal(actual_x, plsq[0][0], plsq[0][2]) + normal(actual_x, plsq[0][1], plsq[0][3])
+plsq_len = len(plsq[0])/2
+print('Mean-Stdev Pairs: leastsq')
+for i in range(len(plsq[0])):
+    try:
+        print('Mean:',plsq[0][i],'Stdev:', plsq[0][i + int(plsq_len)])
+    except IndexError:
+        break
 
-plt.plot(actual_x, actual_y, label='Real Data')
+actual_y_est = normal(actual_x, plsq[0][0], plsq[0][4]) + normal(actual_x, plsq[0][1], plsq[0][5]) \
+               + normal(actual_x,plsq[0][2],plsq[0][6]) + normal(actual_x,plsq[0][3],plsq[0][7])
+
+N=1000
+y = np.zeros(N)
+x1 = np.linspace(0, 10, N, endpoint=True)
+plt.plot(x1,y)
+plt.plot(actual_x, actual_y, '.b',label='Real Data')
 plt.plot(actual_x, actual_y_est, 'r', label='Fitted')
 
-plt.plot(actual_x,normal(actual_x, plsq[0][0], plsq[0][2]), label = 'Peak 1') # Peak 1
-plt.plot(actual_x,normal(actual_x, plsq[0][1], plsq[0][3]), label = 'Peak 2') # Peak 2
+plt.plot(actual_x,normal(actual_x, plsq[0][0], plsq[0][4]), label = 'Peak 1') # Peak 1
+plt.plot(actual_x,normal(actual_x, plsq[0][1], plsq[0][5]), label = 'Peak 2') # Peak 2
+plt.plot(actual_x,normal(actual_x, plsq[0][2], plsq[0][6]), label = 'Peak 3') # Peak 3
+plt.plot(actual_x,normal(actual_x, plsq[0][3], plsq[0][7]), label = 'Peak 4') # Peak 3
 
-# plt.plot(actual_x,normal(actual_x, actual_mean, actual_stdev),'black',label = 'Initial Guess Curve')
-# plt.plot(actual_x,normal(actual_x, actual_mean1, actual_stdev1),'black')
+#plt.plot(actual_x,normal(actual_x, actual_mean, actual_stdev),'black',label = 'Initial Guess Curve')
+#plt.plot(actual_x,normal(actual_x, actual_mean1, actual_stdev1),'green')
+#plt.plot(actual_x,normal(actual_x, actual_mean2, actual_stdev2),'grey')
+#plt.plot(actual_x,normal(actual_x, actual_mean3, actual_stdev3),'.y')
+
+#labellines.labelLines(ax.get_lines())
 
 plt.legend()
-#plt.show()
+plt.show()
 
+############################
+### Least_Squares Method ###
+############################
+
+actual_mean = mean
+actual_mean1 = actual_mean + (actual_mean*0.001)
+actual_mean2 = actual_mean + (actual_mean1 * 0.002)
+actual_mean3 = actual_mean + (actual_mean1 * 0.003)
+
+actual_stdev = stdev
+actual_stdev1 = actual_stdev + (actual_stdev*0.001)
+actual_stdev2 = actual_stdev +  (actual_stdev1*0.002)
+actual_stdev3 = actual_stdev +  (actual_stdev1*0.003)
+
+# Uses the actual datapoints as the raw inputs
+actual_x = concat_freq
+actual_y = concat_abs
+
+### Solving ###
+
+# Initial Guesses
+initial = [actual_mean,actual_mean1,actual_mean2,actual_mean3,
+           actual_stdev,actual_stdev1,actual_stdev2,actual_stdev3]
+
+bounds=([0,0,0,0,0,0,0,0],
+        [np.inf,np.inf,np.inf,np.inf,np.inf,np.inf,np.inf,np.inf])
+def objective_res(initial, actual_y, actual_x):
+
+    '''
+
+    :param initial: Set of initial guesses used for the leastsq algorithm
+    :param actual_y: The actual absorbance values in the range generated from the window function
+    :param actual_x: The actual frequency values in the range generated from the window function
+    :return: Returns the difference between the estimated fit and the actual datapoints
+    '''
+
+    actual_y = np.array(actual_y)
+    # Decode Data
+    [actual_mean, actual_mean1,
+     actual_mean2,actual_mean3,
+     actual_stdev, actual_stdev1,
+     actual_stdev2, actual_stdev3] = initial
+
+    # Create the fitting as two normal curves
+    actual_y_fit = normal(actual_x, actual_mean, actual_stdev) + \
+                   normal(actual_x, actual_mean1, actual_stdev1) + \
+                   normal(actual_x,actual_mean2,actual_stdev2) + \
+                   normal(actual_x, actual_mean3, actual_stdev3)
+
+    # Creates bivariate normal distribution by using the norm function which creates a normal curve
+    # based on the x values and the initial guesses for the mean and stddev
+    err = (actual_y - actual_y_fit)
+    return err
+
+result = least_squares(objective_res,initial,args = (actual_y, actual_x))
+
+actual_y_est = normal(actual_x, result.x[0], result.x[4]) + normal(actual_x, result.x[1], result.x[5]) \
+               + normal(actual_x,result.x[2],result.x[6]) + normal(actual_x,result.x[3],result.x[7])
+
+result_len = len(result)/2
+print('Mean-Stdev Pairs: least_squares')
+for i in range(len(result)):
+    try:
+        print('Mean:',result.x[i],'Stdev:', result.x[i + int(result_len)])
+    except IndexError:
+        break
+
+N=1000
+y = np.zeros(N)
+x1 = np.linspace(0, 10, N, endpoint=True)
+plt.plot(x1,y)
+plt.plot(actual_x, actual_y, '.b',label='Real Data')
+plt.plot(actual_x, actual_y_est, '.r', label='Fitted')
+
+plt.plot(actual_x,normal(actual_x, result.x[0], result.x[4]), label = 'Peak 1') # Peak 1
+plt.plot(actual_x,normal(actual_x, result.x[1], result.x[5]), label = 'Peak 2') # Peak 2
+plt.plot(actual_x,normal(actual_x, result.x[2], result.x[6]), label = 'Peak 3') # Peak 3
+plt.plot(actual_x,normal(actual_x, result.x[3], result.x[7]), label = 'Peak 4') # Peak 3
+
+plt.legend()
+plt.show()
+
+######################
 ### Recursive Shit ###
+######################
+
 
 # Base Case: Error between actual_y_est and actual_y is less than .005% of actual_y
 
@@ -380,19 +497,83 @@ def actual_res_recursive(pbpaf,actual_x, actual_y, num_curves):
     err = actual_y - actual_y_fit
     #return err
 
-actual_res_recursive(pbpaf,actual_x, actual_y, 3)
+##################################
+### Least_Squares Example Data ###
+##################################
 
-#########
-# Example Data:
+def objective(z,actual_x, actual_y):
+
+    actual_y = np.array(actual_y)
+
+    k1 = z[0]
+    m1 = z[1]
+    s1 = z[2]
+    k2 = z[3]
+    m2 = z[4]
+    s2 = z[5]
+    k3 = z[6]
+    m3 = z[7]
+    s3 = z[8]
+
+
+    f1 = k1 * np.exp(-(x - m1) ** 2 / (2) * (s1) ** 2)
+    f2 = k2 * np.exp(-(x - m2) ** 2 / (2) * (s2) ** 2)
+    f3 = k3 * np.exp(-(x - m3) ** 2 / (2) * (s3) ** 2)
+
+    return actual_y - (f1 + f2 + f3)
+
+initial = [actual_mean,actual_mean1,actual_mean2,actual_mean3,
+           actual_stdev,actual_stdev1,actual_stdev2,actual_stdev3]
+
+bounds=([0,0,0,0,0,0,0,0],
+        [np.inf,np.inf,np.inf,np.inf,np.inf,np.inf,np.inf,np.inf])
+
+actual_y = np.array(actual_y)
+
+result = least_squares(objective,initial,method='trf',bounds=bounds,args = (actual_x,actual_y))
+
+
+k1 = result.x[0]
+m1 = result.x[1]
+s1 = result.x[2]
+k2 = result.x[3]
+m2 = result.x[4]
+s2 = result.x[5]
+k3 = result.x[6]
+m3 = result.x[7]
+s3 = result.x[8]
+
+
+f1 = k1*np.exp(-(x-m1)**2 / (2)*(s1)**2)
+f2 = k2*np.exp(-(x-m2)**2 / (2)*(s2)**2)
+f3 = k3*np.exp(-(x-m3)**2 / (2)*(s3)**2)
+
+
+plt.plot(x,f1,label='Component [1]',color='darkorange')
+plt.plot(x,f2,label='Component [2]',color='yellow')
+plt.plot(x,f3,label='Component [3]',color='green')
+plt.plot(x,f4,label='Component [4]',color='red')
+plt.plot(x,(f1+f2+f3+f4),label='Combined Components',color='black')
+plt.fill_between(x, np.exp(logprob), alpha=0.2, label='KDE')
+
+plt.xlabel('RUWE', fontsize=12)
+plt.ylabel('Frequency',fontsize=12)
+plt.legend()
+
+
+#####################
+### Example Data: ###
+#####################
+
 mean1, mean2 = 0, -2
 std1, std2 = 0.5, 1
 x = np.linspace(-20, 20, 500)
-y_real = norm(x, mean1, std1) + norm(x, mean2, std2)
+y_real = normal(x, mean1, std1) + normal(x, mean2, std2)
 
 # Solving
 m, dm, sd1, sd2 = [-2, 10, 1, 1]
 p = [m, dm, sd1, sd2] # Initial guesses for leastsq
-y_init = norm(x, m, sd1) + norm(x, m + dm, sd2) # For final comparison plot
+y_init = normal(x, m, sd1) + normal(x, m + dm, sd2) # For final comparison plot
 
 # Pretty sure this creates the function that determines the difference between
 # the calculated peak and the actual peak, which is then minimized as a function
@@ -402,20 +583,21 @@ def res(p, y, x):
   m, dm, sd1, sd2 = p
   m1 = m
   m2 = m1 + dm
-  y_fit = norm(x, m1, sd1) + norm(x, m2, sd2)
+  y_fit = normal(x, m1, sd1) + normal(x, m2, sd2)
   # creates bivariate normal distribution by using the norm function which creates a normal curve
   # based on the x values and the initial guesses for the mean and stddev
   err = y - y_fit
   return err
 
 plsq = leastsq(res, p, args = (y_real, x))
+print('PLSQ',plsq)
 
-y_est = norm(x, plsq[0][0], plsq[0][2]) + norm(x, plsq[0][0] + plsq[0][1], plsq[0][3])
+y_est = normal(x, plsq[0][0], plsq[0][2]) + normal(x, plsq[0][0] + plsq[0][1], plsq[0][3])
 
 plt.plot(x, y_real, label='Real Data')
 plt.plot(x, y_init, 'r.', label='Starting Guess')
-plt.plot(x,norm(x, plsq[0][0], plsq[0][2]), label = 'Peak 1') # Peak 1
-plt.plot(x,norm(x, plsq[0][0] + plsq[0][1], plsq[0][3]), label = 'Peak 2') # Peak 2
+plt.plot(x,normal(x, plsq[0][0], plsq[0][2]), label = 'Peak 1') # Peak 1
+plt.plot(x,normal(x, plsq[0][0] + plsq[0][1], plsq[0][3]), label = 'Peak 2') # Peak 2
 plt.plot(x, y_est, 'g.', label='Fitted')
 plt.legend()
 plt.show()
