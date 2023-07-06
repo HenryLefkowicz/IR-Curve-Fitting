@@ -140,17 +140,19 @@ def window(block_peaks, block_size, window_start, window_end, combined_peak_loca
 
     return pbfp, pbap ,pbpaf
 
-window = window(7,1,3,4,combined_peak_locations,combined_array,peak_freq_abs_array)
-freq = window[0]
-abs = window[1]
-pbpaf = window[2]
+nl_window = window(7,1,5,6,combined_peak_locations,combined_array,peak_freq_abs_array)
 
 # Takes the concatenated list creates by the window functions and
 # creates a new list without all the sublist stuff. These data points can be used
 # as the raw data for the optimization function.
 
-concat_freq = [j for i in window[0] for j in i]
-concat_abs = [j for i in window[1] for j in i]
+print('nl_window[0]: ',nl_window[0])
+
+concat_freq = [j for i in nl_window[0] for j in i]
+print('concat_freq: ',concat_freq)
+
+
+concat_abs = [j for i in nl_window[1] for j in i]
 
 mean = statistics.mean(concat_freq)
 stdev = statistics.stdev(concat_freq)
@@ -220,10 +222,7 @@ def plotter(concat_freq,concat_abs):
     plt.legend()
     plt.show()
 
-def fun_rosenbrock(x):
-    return np.array([10 * (x[1] - x[0]**2), (1 - x[0])])
-
-p1 = [450,3]
+p1 = [470,3]
 p2 = [470,3,475,3]
 p3 = [470,3,475,3,480,3]
 p4 = [470,3,475,3,480,3,470,4]
@@ -248,8 +247,31 @@ def gaussian4(x, mean, sd, mean2, sd2, mean3, sd3, mean4, sd4):
     1.0 / (sd * np.sqrt(2 * np.pi)) * np.exp(-(x - mean4) ** 2 / (2 * sd4 ** 2))
 
 
+popt,pcov = curve_fit(gaussian, actual_x_arr, actual_y_arr,p0=p1,bounds = (0,[500,10]))
+print('One Curve:', popt)
+
+holder = []
+for i in range(len(actual_x_arr)):
+    err = 100 - (actual_y_arr[i] / gaussian(actual_x_arr[i],popt[0],popt[1]))*100
+    holder.append(err)
+
+print('One Curve Error:',sum(abs(np.array(holder))))
+
+plt.figure('One Curve')
+plt.plot(actual_x_arr, actual_y_arr, '.b', label='Real Data')
+plt.plot(actual_x_arr, gaussian(actual_x_arr, popt[0], popt[1]))
+
+print('################################')
+
 popt,pcov = curve_fit(gaussian2, actual_x_arr, actual_y_arr,p0=p2,bounds = (0,[500,10,500,10]))
 print('Two Curves:', popt)
+
+holder = []
+for i in range(len(actual_x_arr)):
+    err = 100 - (actual_y_arr[i] / gaussian2(actual_x_arr[i],popt[0],popt[1],popt[2],popt[3]))*100
+    holder.append(err)
+
+print('Two Curve Error:',sum(abs(np.array(holder))))
 
 plt.figure('Two Curves')
 plt.plot(actual_x_arr, actual_y_arr, '.b',label='Real Data')
@@ -259,9 +281,14 @@ plt.plot(actual_x_arr, gaussian(actual_x_arr,popt[2],popt[3]),label = 'Component
 
 plt.legend()
 
+print('################################')
+
 popt,pcov = curve_fit(gaussian3, actual_x_arr, actual_y_arr,p0=p3,
         bounds = ((450, 0, 450, 0, 450, 0), (500, 10, 500, 10, 500, 10)))
 print('Three Curves:', popt)
+perr = np.sqrt(np.diag(pcov))
+print(sum(perr))
+
 plt.figure('Three Curves')
 plt.plot(actual_x_arr, actual_y_arr, '.b',label='Real Data')
 plt.plot(actual_x_arr, gaussian3(actual_x_arr,popt[0],popt[1],popt[2],popt[3],popt[4],popt[5]))
@@ -269,9 +296,27 @@ plt.plot(actual_x_arr, gaussian(actual_x_arr,popt[0],popt[1]),label = 'Component
 plt.plot(actual_x_arr, gaussian(actual_x_arr,popt[2],popt[3]),label = 'Component 2',color = 'orange')
 plt.plot(actual_x_arr, gaussian(actual_x_arr,popt[4],popt[5]),label = 'Component 3',color = 'green')
 
+holder = []
+for i in range(len(actual_x_arr)):
+    err = 100 - (actual_y_arr[i] / gaussian3(actual_x_arr[i],popt[0],popt[1],popt[2],popt[3],popt[4],popt[5]))*100
+    holder.append(err)
+
+print('Three Curve Error:',sum(abs(np.array(holder))))
+
+print('################################')
+
 popt,pcov = curve_fit(gaussian4, actual_x_arr, actual_y_arr,p0=p4,
         bounds = ((350, 0, 350, 0, 350, 0, 350, 0), (600, 10, 600, 10, 600, 10, 600, 10)), method = 'trf', maxfev = 10000)
 print('Four Curves:', popt)
+
+holder = []
+for i in range(len(actual_x_arr)):
+    err = 100 - (actual_y_arr[i] / gaussian4(actual_x_arr[i],popt[0],popt[1],popt[2],popt[3],popt[4],popt[5],popt[6],popt[7]))*100
+    holder.append(err)
+
+print('Four Curve Error:',sum(abs(np.array(holder))))
+print('################################')
+
 plt.figure('Four Curves')
 plt.plot(actual_x_arr, actual_y_arr, '.b',label='Real Data')
 plt.plot(actual_x_arr, gaussian4(actual_x_arr,popt[0],popt[1],popt[2],popt[3],popt[4],popt[5],popt[6],popt[7]))
@@ -282,6 +327,76 @@ plt.plot(actual_x_arr, gaussian(actual_x_arr,popt[6],popt[7]),label = 'Component
 
 plt.legend()
 plt.show()
+
+def looper(combined_peak_locations,combined_array,peak_freq_abs_array, it_attempts):
+    """
+
+    The goal of this function is to create perform the same Gaussian fitting over a larger area
+
+    :param combined_peak_locations: Indices of where all the peaks are
+    :param combined_array: An 2x3500ish matrix of paired points. The first is the frequency in cm-1 at
+    that point, the second is the corresponding absorbance
+    :param peak_freq_abs_array: An array set up the same way as the combined_array matrix, but
+    this one just holds the frequencies of the sub-peaks in cm-1 and their corresponding absorbance
+    :param it_attempts:
+    """
+    print('Combined Peak Locations: ', combined_peak_locations)
+    print('Combined_array: ',combined_array)
+    print('peak freaq abs array:', peak_freq_abs_array)
+
+    for i in range(6):
+        try:
+
+            # We're just calling the window function a bunch of times over the same area, but changing the actual
+            # subpeak we're looking at. It's going to run over the same N number of points every time, but it's going to
+            # take a different subset P of those N point each time. That subset P contains the points of the subpeak
+            # that's getting gaussian fitted
+
+            l_window = window(7, 1, i, i+1, combined_peak_locations, combined_array, peak_freq_abs_array)
+
+            # The X values are the first subset of l_window's output.
+            actual_x = l_window[0][0]
+            print('actual_x',actual_x)
+            actual_x_arr = np.array(actual_x)
+
+            # The Y values are the second subset of l_window's output.
+            actual_y = l_window[1][0]
+            actual_y_arr = np.array(actual_y)
+
+            mean = statistics.mean(concat_freq)
+            stdev = statistics.stdev(concat_freq)
+
+            # buffer value
+            bf = 175
+
+            # This where you initialize the starting guesses
+            # TODO: Make this work over a larger area / dynamically change
+            p4 = [mean, stdev, mean, stdev, mean, stdev, mean, stdev]
+
+            # This is where the actual optimized parameters are calculated
+            # popt: Array of optimized parameters
+            # pcov: Covariance of parameters
+            # See scipy curve_fit documentation for more information
+            popt, pcov = curve_fit(gaussian4, actual_x_arr, actual_y_arr, p0=p4,
+                                   bounds= ((350, 0, 350, 0, 350, 0, 350, 0),
+                                            (600, 10, 600, 10, 600, 10, 600, 10)),
+                                   method='trf', maxfev=10000)
+
+            # Plot the actual data
+            plt.plot(actual_x_arr, actual_y_arr, '.b', label='Real Data')
+            # Plots the Gaussian fits
+            plt.plot(actual_x_arr,
+                     gaussian4(actual_x_arr, popt[0], popt[1], popt[2], popt[3], popt[4], popt[5], popt[6], popt[7]))
+
+            # plt.show() ## UNCOMMENT ME TO SHOW EACH CURVE AS IT'S MADE
+
+        except IndexError:
+            break
+
+    # Plots everything
+    plt.show()
+
+looper(combined_peak_locations,combined_array,peak_freq_abs_array,7)
 
 
 

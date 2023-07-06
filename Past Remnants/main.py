@@ -45,7 +45,7 @@ denoise_intensity = np.vectorize(denoise)
 absorbance = denoise_intensity(intensity, noise)
 
 
-plt.scatter(frequency, absorbance, s=1, color='black')
+plt.plot(frequency, absorbance, color='black')
 plt.show()
 
 
@@ -417,7 +417,7 @@ def peak_print(peak_list_global,full_peak_list,calculated_peaks,color,flip_value
     plt.plot(freq_arr,inten_arr, color = 'grey')
     plt.scatter(low_frequency_peaks_arr, low_intensity_peaks_arr, s=8, color='red')
     plt.scatter(high_frequency_peaks_arr, high_intensity_peaks_arr, s=8, color='black')
-    #plt.show()
+    plt.show()
 
 def main():
 
